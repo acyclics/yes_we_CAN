@@ -1,0 +1,25 @@
+--cpu=Cortex-M4.fp
+"cantest\startup_stm32f427xx.o"
+"cantest\main.o"
+"cantest\stm32f4xx_it.o"
+"cantest\stm32f4xx_hal_msp.o"
+"cantest\stm32f4xx_hal_can.o"
+"cantest\stm32f4xx_hal_tim.o"
+"cantest\stm32f4xx_hal_tim_ex.o"
+"cantest\stm32f4xx_hal_rcc.o"
+"cantest\stm32f4xx_hal_rcc_ex.o"
+"cantest\stm32f4xx_hal_flash.o"
+"cantest\stm32f4xx_hal_flash_ex.o"
+"cantest\stm32f4xx_hal_flash_ramfunc.o"
+"cantest\stm32f4xx_hal_gpio.o"
+"cantest\stm32f4xx_hal_dma_ex.o"
+"cantest\stm32f4xx_hal_dma.o"
+"cantest\stm32f4xx_hal_pwr.o"
+"cantest\stm32f4xx_hal_pwr_ex.o"
+"cantest\stm32f4xx_hal_cortex.o"
+"cantest\stm32f4xx_hal.o"
+"cantest\system_stm32f4xx.o"
+--library_type=microlib --strict --scatter "CANTEST\CANTEST.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "CANTEST.map" -o CANTEST\CANTEST.axf
