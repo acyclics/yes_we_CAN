@@ -32,35 +32,10 @@
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_can.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
 
 /* USER CODE BEGIN 0 */
-HAL_StatusTypeDef wake_Motor(CAN_HandleTypeDef* hcan, uint32_t* mailbox)
-{
-	CAN_TxHeaderTypeDef motor;
-	motor.StdId 		= 0x200;
-	motor.IDE			= CAN_ID_STD;
-	motor.RTR			= CAN_RTR_DATA;
-	motor.DLC			= 0x08;
-	uint8_t Data[8];
-	
-	// current values for motor 1
-	int16_t m1 = 0x4000;
-	Data[0] = m1;
-	Data[1] = m1 >> 8;
-	Data[2] = m1;
-	Data[3] = m1 >> 8;
-	Data[4] = m1;
-	Data[5] = m1 >> 8;
-	Data[6] = m1;
-	Data[7] = m1 >>8;
-	
-	return HAL_CAN_AddTxMessage(hcan, &motor, Data, mailbox);
-}
-
-int BOOL_FORWARD = 0;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -227,7 +202,6 @@ void EXTI0_IRQHandler(void)
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
-	BOOL_FORWARD = 1;
   /* USER CODE END EXTI0_IRQn 1 */
 }
 

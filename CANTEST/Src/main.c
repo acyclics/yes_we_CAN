@@ -1,4 +1,3 @@
-
 /**
   ******************************************************************************
   * @file           : main.c
@@ -39,10 +38,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_can.h"
 
 /* USER CODE BEGIN Includes */
-HAL_StatusTypeDef wake_Motor(CAN_HandleTypeDef* hcan, uint32_t* mailbox);
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -59,14 +56,14 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_CAN2_Init(void);
-
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+void filter_init(void);
+void send_Motor_Cmd(void);
 /* USER CODE END 0 */
 
 /**
@@ -99,32 +96,59 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
-  MX_CAN2_Init();
+  //MX_CAN2_Init();
   /* USER CODE BEGIN 2 */
+	filter_init();
+	if (HAL_CAN_Init(&hcan1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	
+	if (HAL_CAN_Start(&hcan1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	
+	send_Motor_Cmd();
+	CAN_RxHeaderTypeDef rxheader;
+	uint8_t data[8];
 
+	// waits until detected msg
+	while (1)
+	{
+		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0)  > 0)
+		{
+			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxheader, data) != HAL_OK)
+			{
+				Error_Handler();
+			}
+			break;
+		}
+		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO1) > 0)
+		{
+			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO1, &rxheader, data) != HAL_OK)
+			{
+				Error_Handler();
+			}
+			break;
+		}
+	}
+	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
+	HAL_Delay(200);
+	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+	while (1)
   {
-
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
-	
-		if (BOOL_FORWARD)
-		{
-			uint32_t* mailbox;
-			if (wake_Motor(&hcan1, mailbox) != HAL_OK)
-			{
-				// if LED flickers, then the Tx message failed
-				HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-				HAL_Delay(500);
-				HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
-			}
-			BOOL_FORWARD = 0;
-		}
   }
   /* USER CODE END 3 */
 
@@ -188,11 +212,11 @@ static void MX_CAN1_Init(void)
 {
 
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 5;
+  hcan1.Init.Prescaler = 1;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_3TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_5TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
   hcan1.Init.AutoBusOff = ENABLE;
   hcan1.Init.AutoWakeUp = DISABLE;
@@ -211,11 +235,11 @@ static void MX_CAN2_Init(void)
 {
 
   hcan2.Instance = CAN2;
-  hcan2.Init.Prescaler = 5;
+  hcan2.Init.Prescaler = 1;
   hcan2.Init.Mode = CAN_MODE_NORMAL;
-  hcan2.Init.SyncJumpWidth = CAN_SJW_4TQ;
-  hcan2.Init.TimeSeg1 = CAN_BS1_3TQ;
-  hcan2.Init.TimeSeg2 = CAN_BS2_5TQ;
+  hcan2.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan2.Init.TimeSeg1 = CAN_BS1_13TQ;
+  hcan2.Init.TimeSeg2 = CAN_BS2_2TQ;
   hcan2.Init.TimeTriggeredMode = DISABLE;
   hcan2.Init.AutoBusOff = ENABLE;
   hcan2.Init.AutoWakeUp = DISABLE;
@@ -279,7 +303,51 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void filter_init(void)
+{
+	CAN_FilterTypeDef motor;
+	motor.FilterIdHigh = 0x0000;
+	motor.FilterIdLow = 0x0000;
+	motor.FilterMaskIdHigh = 0x0000;
+	motor.FilterMaskIdLow = 0x0000;
+	motor.FilterFIFOAssignment = CAN_FilterFIFO0;
+	motor.FilterBank = 14;
+	motor.FilterActivation = ENABLE;
+	motor.FilterScale = CAN_FILTERSCALE_32BIT;
+	motor.FilterMode = CAN_FILTERMODE_IDMASK;
+	
+	if (HAL_CAN_ConfigFilter(&hcan1,&motor) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	
+	// activate interrupts
+	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_OVERRUN);
+	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY);
+	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY);
+}
 
+void send_Motor_Cmd(void)
+{
+	CAN_TxHeaderTypeDef motor;
+	motor.StdId 		= 0x200;
+	motor.IDE			= CAN_ID_STD;
+	motor.RTR			= CAN_RTR_DATA;
+	motor.DLC			= 8;
+	uint8_t Data[8];
+
+	// current values for motor 1
+	int16_t m1 = 9000;	//try 0x3000
+	Data[0] = m1 >> 8;
+	Data[1] = m1;
+	
+	uint32_t* mailbox;
+	if (HAL_CAN_AddTxMessage(&hcan1, &motor, Data, mailbox) != HAL_OK)
+	{
+		Error_Handler();
+	}
+}
 /* USER CODE END 4 */
 
 /**
@@ -294,6 +362,10 @@ void _Error_Handler(char *file, int line)
   /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
+		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
+		HAL_Delay(400);
+		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+		HAL_Delay(400);
   }
   /* USER CODE END Error_Handler_Debug */
 }
