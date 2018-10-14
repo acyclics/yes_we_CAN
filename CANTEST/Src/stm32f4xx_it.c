@@ -34,13 +34,14 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
-
+#include "user.h"
 /* USER CODE BEGIN 0 */
+extern uint8_t rxData[8];
+extern CAN_RxHeaderTypeDef rxHeader;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
 extern CAN_HandleTypeDef hcan1;
-extern CAN_HandleTypeDef hcan2;
 
 /******************************************************************************/
 /*            Cortex-M4 Processor Interruption and Exception Handlers         */ 
@@ -206,26 +207,12 @@ void EXTI0_IRQHandler(void)
 }
 
 /**
-* @brief This function handles CAN1 TX interrupts.
-*/
-void CAN1_TX_IRQHandler(void)
-{
-  /* USER CODE BEGIN CAN1_TX_IRQn 0 */
-
-  /* USER CODE END CAN1_TX_IRQn 0 */
-  HAL_CAN_IRQHandler(&hcan1);
-  /* USER CODE BEGIN CAN1_TX_IRQn 1 */
-
-  /* USER CODE END CAN1_TX_IRQn 1 */
-}
-
-/**
 * @brief This function handles CAN1 RX0 interrupts.
 */
 void CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX0_IRQn 0 */
-
+	HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxHeader, rxData);
   /* USER CODE END CAN1_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan1);
   /* USER CODE BEGIN CAN1_RX0_IRQn 1 */
@@ -245,34 +232,6 @@ void EXTI15_10_IRQHandler(void)
   /* USER CODE BEGIN EXTI15_10_IRQn 1 */
 
   /* USER CODE END EXTI15_10_IRQn 1 */
-}
-
-/**
-* @brief This function handles CAN2 TX interrupts.
-*/
-void CAN2_TX_IRQHandler(void)
-{
-  /* USER CODE BEGIN CAN2_TX_IRQn 0 */
-
-  /* USER CODE END CAN2_TX_IRQn 0 */
-  HAL_CAN_IRQHandler(&hcan2);
-  /* USER CODE BEGIN CAN2_TX_IRQn 1 */
-
-  /* USER CODE END CAN2_TX_IRQn 1 */
-}
-
-/**
-* @brief This function handles CAN2 RX0 interrupts.
-*/
-void CAN2_RX0_IRQHandler(void)
-{
-  /* USER CODE BEGIN CAN2_RX0_IRQn 0 */
-
-  /* USER CODE END CAN2_RX0_IRQn 0 */
-  HAL_CAN_IRQHandler(&hcan2);
-  /* USER CODE BEGIN CAN2_RX0_IRQn 1 */
-
-  /* USER CODE END CAN2_RX0_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
