@@ -39,17 +39,23 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include "user.h"
 
 /* USER CODE BEGIN Includes */
-CAN_TxHeaderTypeDef motor;
-CAN_RxHeaderTypeDef rxHeader;
-CAN_FilterTypeDef motorFilter;
+CAN_TxHeaderTypeDef can1TxHeader0;
+CAN_TxHeaderTypeDef can1TxHeader1;
+CAN_RxHeaderTypeDef can1RxHeader;
+CAN_FilterTypeDef can1Filter;
+uint8_t canTxMsg0[8] = {0};
+uint8_t canTxMsg1[8] = {0};
 uint8_t rxData[8];
+uint32_t can_count=0;
+uint32_t time_tick_ms = 0;
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
+
+TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -60,6 +66,7 @@ CAN_HandleTypeDef hcan1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_TIM6_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -67,9 +74,8 @@ static void MX_CAN1_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-void filter_init(void);
-void send_Motor_Cmd(int16_t m1);
-void receive_Esc_Msg(void);
+void set_CM_speed(int16_t cm1_iq,int16_t cm2_iq,int16_t cm3_iq,int16_t cm4_iq);
+void CAN_Initialize(void);
 /* USER CODE END 0 */
 
 /**
@@ -102,19 +108,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
-	if (HAL_CAN_Init(&hcan1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-	filter_init();
-	if (HAL_CAN_Start(&hcan1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	
-	send_Motor_Cmd(3000);
-	//receive_Esc_Msg();
+	CAN_Initialize();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -205,6 +201,30 @@ static void MX_CAN1_Init(void)
 
 }
 
+/* TIM6 init function */
+static void MX_TIM6_Init(void)
+{
+
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 42;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 2000;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -254,68 +274,69 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void filter_init(void)
+void CAN_Initialize(void)
 {
-	motorFilter.FilterIdHigh = 0x0000;
-	motorFilter.FilterIdLow = 0x0000;
-	motorFilter.FilterFIFOAssignment = CAN_FilterFIFO0;
-	motorFilter.FilterBank = 0;	// possibly 14
-	motorFilter.FilterActivation = ENABLE;
-	motorFilter.FilterScale = CAN_FILTERSCALE_32BIT;
-	motorFilter.FilterMode = CAN_FILTERMODE_IDMASK;
+	hcan1.Instance = CAN1;
+  hcan1.Init.Prescaler = 3;
+  hcan1.Init.Mode = CAN_MODE_NORMAL;
+  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_9TQ;
+  hcan1.Init.TimeSeg2 = CAN_BS2_4TQ;
+  hcan1.Init.TimeTriggeredMode = DISABLE;
+  hcan1.Init.AutoBusOff = DISABLE;
+  hcan1.Init.AutoWakeUp = DISABLE;
+  hcan1.Init.AutoRetransmission = DISABLE;
+  hcan1.Init.ReceiveFifoLocked = DISABLE;
+  hcan1.Init.TransmitFifoPriority = ENABLE;
+  if (HAL_CAN_Init(&hcan1) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
 	
-	if (HAL_CAN_ConfigFilter(&hcan1,&motorFilter) != HAL_OK)
-	{
-		Error_Handler();
-	}
+	can1TxHeader0.IDE = CAN_ID_STD;
+	can1TxHeader0.StdId = 0x200;
+	can1TxHeader0.DLC = 8;
 	
-	// activate interrupts
-	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_FULL);
+	can1TxHeader1.IDE = CAN_ID_STD;
+	can1TxHeader1.StdId = 0x1FF;
+	can1TxHeader1.RTR = CAN_RTR_DATA;
+	can1TxHeader1.DLC = 8;
+	
+	
+	can1Filter.FilterActivation = ENABLE;
+	can1Filter.FilterMode = CAN_FILTERMODE_IDMASK;
+	can1Filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	can1Filter.FilterFIFOAssignment = CAN_FilterFIFO0;
+	can1Filter.FilterIdHigh = 0x0000;
+	can1Filter.FilterIdLow = 0x0000;
+	can1Filter.FilterBank = 0;
+	HAL_CAN_ConfigFilter(&hcan1,&can1Filter);
+	HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_FULL);
+	HAL_CAN_Start(&hcan1);
 }
-
-void send_Motor_Cmd(int16_t m1)
+void CAN_SendMsg(CAN_HandleTypeDef* hcan,CAN_TxHeaderTypeDef *canTxHeader,uint8_t* canMsg)
 {
-	motor.StdId 		= 0x200;
-	motor.IDE			= CAN_ID_STD;
-	motor.RTR			= CAN_RTR_DATA;
-	motor.DLC			= 8;
-	uint8_t Data[8] = {0};
-
-	// current values for motor 1
-	Data[0] = (uint8_t) (m1 >> 8);
-	Data[1] = (uint8_t) m1;
-	Data[2] = (uint8_t) (m1 >> 8);
-	Data[3] = (uint8_t) m1;
-	Data[4] = (uint8_t) (m1 >> 8);
-	Data[5] = (uint8_t) m1;
-	Data[6] = (uint8_t) (m1 >> 8);
-	Data[7] = (uint8_t) m1;
-		
-	if (HAL_CAN_AddTxMessage(&hcan1, &motor, Data, (void*)CAN_TX_MAILBOX0) != HAL_OK)
-	{
-		Error_Handler();
-		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-	}
+	HAL_CAN_AddTxMessage(hcan,canTxHeader,canMsg,(void*)CAN_TX_MAILBOX0);
 }
-
-void receive_Esc_Msg(void)
+void set_CM_speed(int16_t cm1_iq,int16_t cm2_iq,int16_t cm3_iq,int16_t cm4_iq)
 {
-	CAN_RxHeaderTypeDef rxheader;
-	uint8_t data[8];
-
-	// waits until detected msg
-	while (1)
+    canTxMsg0[0] = (uint8_t)(cm1_iq >> 8);
+    canTxMsg0[1] = (uint8_t)cm1_iq;
+    canTxMsg0[2] = (uint8_t)(cm2_iq >> 8);
+    canTxMsg0[3] = (uint8_t)cm2_iq;
+    canTxMsg0[4] = (uint8_t)(cm3_iq >> 8);
+    canTxMsg0[5] = (uint8_t)cm3_iq;
+    canTxMsg0[6] = (uint8_t)(cm4_iq >> 8);
+    canTxMsg0[7] = (uint8_t)cm4_iq;
+    CAN_SendMsg(&hcan1,&can1TxHeader0,canTxMsg0);
+}
+void sendMotorMsg(void)
+{
+	time_tick_ms += 1;
+	if(time_tick_ms%4==0)
 	{
-		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0)  > 0)
-		{
-			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxheader, data) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			break;
-		}
+		set_CM_speed(2000, 2000, 2000, 2000);
 	}
-	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
 }
 /* USER CODE END 4 */
 
