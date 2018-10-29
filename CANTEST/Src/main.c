@@ -1,4 +1,3 @@
-
 /**
   ******************************************************************************
   * @file           : main.c
@@ -39,17 +38,14 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f4xx_hal.h"
-#include "user.h"
 
 /* USER CODE BEGIN Includes */
-CAN_TxHeaderTypeDef motor;
-CAN_RxHeaderTypeDef rxHeader;
-CAN_FilterTypeDef motorFilter;
-uint8_t rxData[8];
+#include "bsp_can.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
+TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -60,6 +56,7 @@ CAN_HandleTypeDef hcan1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
+static void MX_TIM6_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -67,9 +64,6 @@ static void MX_CAN1_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-void filter_init(void);
-void send_Motor_Cmd(int16_t m1);
-void receive_Esc_Msg(void);
 /* USER CODE END 0 */
 
 /**
@@ -102,19 +96,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
-	if (HAL_CAN_Init(&hcan1) != HAL_OK)
-	{
-		Error_Handler();
-	}
+  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-	filter_init();
-	if (HAL_CAN_Start(&hcan1) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	
-	send_Motor_Cmd(3000);
-	//receive_Esc_Msg();
+	CAN_Init_All();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -122,7 +106,7 @@ int main(void)
 	while (1)
   {
   /* USER CODE END WHILE */
-
+		HAL_Delay(1);
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -205,6 +189,30 @@ static void MX_CAN1_Init(void)
 
 }
 
+/* TIM6 init function */
+static void MX_TIM6_Init(void)
+{
+
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 42;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 2000;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /** Configure pins as 
         * Analog 
         * Input 
@@ -219,11 +227,22 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(POWER1_GPIO_Port, POWER1_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : POWER1_Pin */
+  GPIO_InitStruct.Pin = POWER1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(POWER1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MOTOR_FORWARD_Pin */
   GPIO_InitStruct.Pin = MOTOR_FORWARD_Pin;
@@ -254,69 +273,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void filter_init(void)
-{
-	motorFilter.FilterIdHigh = 0x0000;
-	motorFilter.FilterIdLow = 0x0000;
-	motorFilter.FilterFIFOAssignment = CAN_FilterFIFO0;
-	motorFilter.FilterBank = 0;	// possibly 14
-	motorFilter.FilterActivation = ENABLE;
-	motorFilter.FilterScale = CAN_FILTERSCALE_32BIT;
-	motorFilter.FilterMode = CAN_FILTERMODE_IDMASK;
-	
-	if (HAL_CAN_ConfigFilter(&hcan1,&motorFilter) != HAL_OK)
-	{
-		Error_Handler();
-	}
-	
-	// activate interrupts
-	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_FULL);
-}
-
-void send_Motor_Cmd(int16_t m1)
-{
-	motor.StdId 		= 0x200;
-	motor.IDE			= CAN_ID_STD;
-	motor.RTR			= CAN_RTR_DATA;
-	motor.DLC			= 8;
-	uint8_t Data[8] = {0};
-
-	// current values for motor 1
-	Data[0] = (uint8_t) (m1 >> 8);
-	Data[1] = (uint8_t) m1;
-	Data[2] = (uint8_t) (m1 >> 8);
-	Data[3] = (uint8_t) m1;
-	Data[4] = (uint8_t) (m1 >> 8);
-	Data[5] = (uint8_t) m1;
-	Data[6] = (uint8_t) (m1 >> 8);
-	Data[7] = (uint8_t) m1;
-		
-	if (HAL_CAN_AddTxMessage(&hcan1, &motor, Data, (void*)CAN_TX_MAILBOX0) != HAL_OK)
-	{
-		Error_Handler();
-		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-	}
-}
-
-void receive_Esc_Msg(void)
-{
-	CAN_RxHeaderTypeDef rxheader;
-	uint8_t data[8];
-
-	// waits until detected msg
-	while (1)
-	{
-		if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0)  > 0)
-		{
-			if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxheader, data) != HAL_OK)
-			{
-				Error_Handler();
-			}
-			break;
-		}
-	}
-	HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-}
 /* USER CODE END 4 */
 
 /**

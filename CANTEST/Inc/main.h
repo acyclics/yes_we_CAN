@@ -49,6 +49,8 @@
 
 /* Private define ------------------------------------------------------------*/
 
+#define POWER1_Pin GPIO_PIN_2
+#define POWER1_GPIO_Port GPIOH
 #define MOTOR_FORWARD_Pin GPIO_PIN_13
 #define MOTOR_FORWARD_GPIO_Port GPIOF
 #define MOTOR_FORWARD_EXTI_IRQn EXTI15_10_IRQn
