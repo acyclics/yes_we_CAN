@@ -31,3 +31,4 @@ cantest\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex
 cantest\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 cantest\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 cantest\stm32f4xx_it.o: ../Inc/stm32f4xx_it.h
+cantest\stm32f4xx_it.o: ..\Can\bsp_can.h

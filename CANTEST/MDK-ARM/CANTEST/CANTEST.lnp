@@ -3,6 +3,7 @@
 "cantest\main.o"
 "cantest\stm32f4xx_it.o"
 "cantest\stm32f4xx_hal_msp.o"
+"cantest\bsp_can.o"
 "cantest\stm32f4xx_hal_can.o"
 "cantest\stm32f4xx_hal_tim.o"
 "cantest\stm32f4xx_hal_tim_ex.o"

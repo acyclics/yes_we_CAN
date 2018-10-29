@@ -1,4 +1,3 @@
-
 /**
   ******************************************************************************
   * @file           : main.c
@@ -41,20 +40,11 @@
 #include "stm32f4xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-CAN_TxHeaderTypeDef can1TxHeader0;
-CAN_TxHeaderTypeDef can1TxHeader1;
-CAN_RxHeaderTypeDef can1RxHeader;
-CAN_FilterTypeDef can1Filter;
-uint8_t canTxMsg0[8] = {0};
-uint8_t canTxMsg1[8] = {0};
-uint8_t rxData[8];
-uint32_t can_count=0;
-uint32_t time_tick_ms = 0;
+#include "bsp_can.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
-
 TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN PV */
@@ -74,8 +64,6 @@ static void MX_TIM6_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-void set_CM_speed(int16_t cm1_iq,int16_t cm2_iq,int16_t cm3_iq,int16_t cm4_iq);
-void CAN_Initialize(void);
 /* USER CODE END 0 */
 
 /**
@@ -110,7 +98,7 @@ int main(void)
   MX_CAN1_Init();
   MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
-	CAN_Initialize();
+	CAN_Init_All();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,7 +106,7 @@ int main(void)
 	while (1)
   {
   /* USER CODE END WHILE */
-
+		HAL_Delay(1);
   /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -239,11 +227,22 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(POWER1_GPIO_Port, POWER1_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : POWER1_Pin */
+  GPIO_InitStruct.Pin = POWER1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(POWER1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : MOTOR_FORWARD_Pin */
   GPIO_InitStruct.Pin = MOTOR_FORWARD_Pin;
@@ -274,70 +273,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void CAN_Initialize(void)
-{
-	hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 3;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
-  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_9TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_4TQ;
-  hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = DISABLE;
-  hcan1.Init.AutoWakeUp = DISABLE;
-  hcan1.Init.AutoRetransmission = DISABLE;
-  hcan1.Init.ReceiveFifoLocked = DISABLE;
-  hcan1.Init.TransmitFifoPriority = ENABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK)
-  {
-    _Error_Handler(__FILE__, __LINE__);
-  }
-	
-	can1TxHeader0.IDE = CAN_ID_STD;
-	can1TxHeader0.StdId = 0x200;
-	can1TxHeader0.DLC = 8;
-	
-	can1TxHeader1.IDE = CAN_ID_STD;
-	can1TxHeader1.StdId = 0x1FF;
-	can1TxHeader1.RTR = CAN_RTR_DATA;
-	can1TxHeader1.DLC = 8;
-	
-	
-	can1Filter.FilterActivation = ENABLE;
-	can1Filter.FilterMode = CAN_FILTERMODE_IDMASK;
-	can1Filter.FilterScale = CAN_FILTERSCALE_32BIT;
-	can1Filter.FilterFIFOAssignment = CAN_FilterFIFO0;
-	can1Filter.FilterIdHigh = 0x0000;
-	can1Filter.FilterIdLow = 0x0000;
-	can1Filter.FilterBank = 0;
-	HAL_CAN_ConfigFilter(&hcan1,&can1Filter);
-	HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_FULL);
-	HAL_CAN_Start(&hcan1);
-}
-void CAN_SendMsg(CAN_HandleTypeDef* hcan,CAN_TxHeaderTypeDef *canTxHeader,uint8_t* canMsg)
-{
-	HAL_CAN_AddTxMessage(hcan,canTxHeader,canMsg,(void*)CAN_TX_MAILBOX0);
-}
-void set_CM_speed(int16_t cm1_iq,int16_t cm2_iq,int16_t cm3_iq,int16_t cm4_iq)
-{
-    canTxMsg0[0] = (uint8_t)(cm1_iq >> 8);
-    canTxMsg0[1] = (uint8_t)cm1_iq;
-    canTxMsg0[2] = (uint8_t)(cm2_iq >> 8);
-    canTxMsg0[3] = (uint8_t)cm2_iq;
-    canTxMsg0[4] = (uint8_t)(cm3_iq >> 8);
-    canTxMsg0[5] = (uint8_t)cm3_iq;
-    canTxMsg0[6] = (uint8_t)(cm4_iq >> 8);
-    canTxMsg0[7] = (uint8_t)cm4_iq;
-    CAN_SendMsg(&hcan1,&can1TxHeader0,canTxMsg0);
-}
-void sendMotorMsg(void)
-{
-	time_tick_ms += 1;
-	if(time_tick_ms%4==0)
-	{
-		set_CM_speed(2000, 2000, 2000, 2000);
-	}
-}
 /* USER CODE END 4 */
 
 /**
