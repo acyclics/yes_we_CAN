@@ -35,7 +35,9 @@ void CAN_Init_All(void)
 {
 	can1TxHeader0.IDE = CAN_ID_STD;
 	can1TxHeader0.StdId = 0x200;
-	can1TxHeader0.DLC = 8;
+	can1TxHeader0.DLC = 0x08;
+	can1TxHeader0.RTR = CAN_RTR_DATA;
+	can1TxHeader0.TransmitGlobalTime = DISABLE;
 	
 	can1TxHeader1.IDE = CAN_ID_STD;
 	can1TxHeader1.StdId = 0x1FF;
@@ -50,7 +52,10 @@ void CAN_Init_All(void)
 	can1Filter.FilterIdLow = 0x0000;
 	can1Filter.FilterBank = 0;
 	HAL_CAN_ConfigFilter(&hcan1,&can1Filter);
-	HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_FULL);
+	//HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_FULL);
+	HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_MSG_PENDING);
+	//HAL_CAN_ActivateNotification(&hcan1,CAN_IT_RX_FIFO0_OVERRUN);
+
 	HAL_CAN_Start(&hcan1);
 }
 /*{End} CAN: INITIALIZE */
@@ -58,18 +63,24 @@ void CAN_Init_All(void)
 /* CAN: USER */
 void CAN_SendMsg(CAN_HandleTypeDef* hcan,CAN_TxHeaderTypeDef *canTxHeader,uint8_t* canMsg)
 {
-	HAL_CAN_AddTxMessage(hcan,canTxHeader,canMsg,(void*)CAN_TX_MAILBOX0);
+	uint32_t tx_mailbox;
+	if (HAL_CAN_AddTxMessage(hcan,canTxHeader,canMsg, &tx_mailbox) != HAL_OK)
+	{
+		// error check here >:)
+	}
+	else
+		while (HAL_CAN_IsTxMessagePending(hcan, tx_mailbox));
 }
 void ME_Test_Chassis(int16_t cm1_iq,int16_t cm2_iq,int16_t cm3_iq,int16_t cm4_iq)
 {
-    canTxMsg0[0] = (uint8_t)(cm1_iq >> 8);
-    canTxMsg0[1] = (uint8_t)cm1_iq;
-    canTxMsg0[2] = (uint8_t)(cm2_iq >> 8);
-    canTxMsg0[3] = (uint8_t)cm2_iq;
-    canTxMsg0[4] = (uint8_t)(cm3_iq >> 8);
-    canTxMsg0[5] = (uint8_t)cm3_iq;
-    canTxMsg0[6] = (uint8_t)(cm4_iq >> 8);
-    canTxMsg0[7] = (uint8_t)cm4_iq;
+    canTxMsg0[0] = cm1_iq >> 8;
+    canTxMsg0[1] = cm1_iq;
+    canTxMsg0[2] = cm2_iq >> 8;
+    canTxMsg0[3] = cm2_iq;
+    canTxMsg0[4] = cm3_iq >> 8;
+    canTxMsg0[5] = cm3_iq;
+    canTxMsg0[6] = cm4_iq >> 8;
+    canTxMsg0[7] = cm4_iq;
     CAN_SendMsg(&hcan1,&can1TxHeader0,canTxMsg0);
 }
 void LOOP_Forward_Chassis(void)
@@ -79,6 +90,11 @@ void LOOP_Forward_Chassis(void)
 /*{End} CAN: USER */
 
 /* CAN: RECEIVE PROCESS */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	can1RxHeader.StdId = (CAN_RI0R_STID & hcan->Instance->sFIFOMailBox[CAN_RX_FIFO0].RIR) >> CAN_TI0R_STID_Pos;
+	HAL_CAN_GetRxMessage(hcan,CAN_RX_FIFO0,&can1RxHeader,canRxMsg);
+}
 void CanReceiveMsgProcess(CAN_RxHeaderTypeDef *rxHeader,uint8_t* msg)
 {      
     can_count++;

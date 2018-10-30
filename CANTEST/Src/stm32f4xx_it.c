@@ -37,9 +37,12 @@
 
 /* USER CODE BEGIN 0 */
 #include "bsp_can.h"
+extern uint8_t canRxMsg[8];
+extern CAN_RxHeaderTypeDef can1RxHeader;
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
+extern CAN_HandleTypeDef hcan1;
 extern TIM_HandleTypeDef htim6;
 
 /******************************************************************************/
@@ -206,13 +209,27 @@ void EXTI0_IRQHandler(void)
 }
 
 /**
+* @brief This function handles CAN1 TX interrupts.
+*/
+void CAN1_TX_IRQHandler(void)
+{
+  /* USER CODE BEGIN CAN1_TX_IRQn 0 */
+
+  /* USER CODE END CAN1_TX_IRQn 0 */
+  HAL_CAN_IRQHandler(&hcan1);
+  /* USER CODE BEGIN CAN1_TX_IRQn 1 */
+
+  /* USER CODE END CAN1_TX_IRQn 1 */
+}
+
+/**
 * @brief This function handles CAN1 RX0 interrupts.
 */
 void CAN1_RX0_IRQHandler(void)
 {
   /* USER CODE BEGIN CAN1_RX0_IRQn 0 */
-	HAL_CAN_GetRxMessage(&hcan1,CAN_RX_FIFO0,&can1RxHeader,canRxMsg);
-	CanReceiveMsgProcess(&can1RxHeader,canRxMsg);
+	//HAL_CAN_GetRxMessage(&hcan1,CAN_RX_FIFO0,&can1RxHeader,canRxMsg);
+	//CanReceiveMsgProcess(&can1RxHeader,canRxMsg);
   /* USER CODE END CAN1_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan1);
   /* USER CODE BEGIN CAN1_RX0_IRQn 1 */
