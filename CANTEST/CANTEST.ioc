@@ -1,12 +1,13 @@
 #MicroXplorer Configuration settings - do not modify
-CAN1.ABOM=DISABLE
+CAN1.ABOM=ENABLE
 CAN1.BS1=CAN_BS1_9TQ
 CAN1.BS2=CAN_BS2_4TQ
 CAN1.CalculateTimeQuantum=187.5
-CAN1.IPParameters=CalculateTimeQuantum,Prescaler,BS1,ABOM,SJW,BS2,TXFP
+CAN1.IPParameters=CalculateTimeQuantum,Prescaler,BS1,ABOM,SJW,BS2,TXFP,NART
+CAN1.NART=ENABLE
 CAN1.Prescaler=3
 CAN1.SJW=CAN_SJW_1TQ
-CAN1.TXFP=ENABLE
+CAN1.TXFP=DISABLE
 File.Version=6
 KeepUserPlacement=false
 Mcu.Family=STM32F4
@@ -34,6 +35,7 @@ MxCube.Version=4.27.0
 MxDb.Version=DB.4.0.270
 NVIC.BusFault_IRQn=true\:0\:0\:false\:false\:true\:false
 NVIC.CAN1_RX0_IRQn=true\:0\:0\:false\:false\:true\:true
+NVIC.CAN1_TX_IRQn=true\:0\:0\:false\:false\:true\:true
 NVIC.DebugMonitor_IRQn=true\:0\:0\:false\:false\:true\:false
 NVIC.EXTI0_IRQn=true\:0\:0\:false\:false\:true\:true
 NVIC.EXTI15_10_IRQn=true\:0\:0\:false\:false\:true\:true

@@ -1,3 +1,4 @@
+
 /**
   ******************************************************************************
   * @file           : main.c
@@ -45,6 +46,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
+
 TIM_HandleTypeDef htim6;
 
 /* USER CODE BEGIN PV */
@@ -106,8 +108,10 @@ int main(void)
 	while (1)
   {
   /* USER CODE END WHILE */
-		HAL_Delay(1);
+
   /* USER CODE BEGIN 3 */
+	HAL_Delay(50);
+	ME_Test_Chassis(10000,10000,10000,10000);
   }
   /* USER CODE END 3 */
 
@@ -177,11 +181,11 @@ static void MX_CAN1_Init(void)
   hcan1.Init.TimeSeg1 = CAN_BS1_9TQ;
   hcan1.Init.TimeSeg2 = CAN_BS2_4TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = DISABLE;
+  hcan1.Init.AutoBusOff = ENABLE;
   hcan1.Init.AutoWakeUp = DISABLE;
-  hcan1.Init.AutoRetransmission = DISABLE;
+  hcan1.Init.AutoRetransmission = ENABLE;
   hcan1.Init.ReceiveFifoLocked = DISABLE;
-  hcan1.Init.TransmitFifoPriority = ENABLE;
+  hcan1.Init.TransmitFifoPriority = DISABLE;
   if (HAL_CAN_Init(&hcan1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -287,10 +291,6 @@ void _Error_Handler(char *file, int line)
   /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
-		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_SET);
-		HAL_Delay(400);
-		HAL_GPIO_WritePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin, GPIO_PIN_RESET);
-		HAL_Delay(400);
   }
   /* USER CODE END Error_Handler_Debug */
 }
